@@ -1,12 +1,13 @@
 POETRY := poetry
 BACKEND := backend
 
-.PHONY: help install test lint dev docker-build docker-up docker-down docker-logs docker-restart
+.PHONY: help install test test-cov lint dev docker-build docker-up docker-down docker-logs docker-restart
 
 help:
 	@echo "Comandos disponíveis:"
 	@echo "  make install       - Instala as dependências"
 	@echo "  make test          - Executa os testes"
+	@echo "  make test-cov      - Executa os testes com cobertura resumida"
 	@echo "  make lint          - Executa o linter"
 	@echo "  make dev           - Inicia o servidor de desenvolvimento"
 	@echo "  make docker-build  - Constrói as imagens Docker"
@@ -19,7 +20,10 @@ install:
 	cd $(BACKEND) && $(POETRY) install
 
 test:
-	cd $(BACKEND) && $(POETRY) run pytest
+	cd $(BACKEND) && $(POETRY) run pytest -v
+
+test-cov:
+	cd $(BACKEND) && $(POETRY) run pytest -v --tb=short
 
 lint:
 	cd $(BACKEND) && $(POETRY) run ruff check .

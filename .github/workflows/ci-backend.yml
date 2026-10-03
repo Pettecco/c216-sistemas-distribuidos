@@ -1,0 +1,42 @@
+name: CI Backend
+
+on:
+  push:
+    branches: [main, aulas, "pratica-*"]
+    paths:
+      - "backend/**"
+      - ".github/workflows/ci-backend.yml"
+  pull_request:
+    branches: [main, aulas]
+    paths:
+      - "backend/**"
+      - ".github/workflows/ci-backend.yml"
+
+jobs:
+  test:
+    name: Testes Backend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Instalar Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Instalar dependências
+        run: poetry install
+
+      - name: Executar testes com Pytest
+        run: poetry run pytest -v --tb=short
