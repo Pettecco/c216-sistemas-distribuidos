@@ -29,7 +29,7 @@ lint:
 	cd $(BACKEND) && $(POETRY) run ruff check .
 
 dev:
-	cd $(BACKEND) && $(POETRY) run uvicorn main:app --reload
+	cd $(BACKEND) && $(POETRY) run uvicorn app.main:app --reload --port 8080
 
 docker-build:
 	docker compose build
