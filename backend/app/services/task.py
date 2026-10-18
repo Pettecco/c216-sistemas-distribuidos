@@ -6,8 +6,11 @@ class TaskService:
         self._tasks: dict[int, Task] = {}
         self._next_id = 1
 
-    def list_tasks(self) -> list[Task]:
-        return list(self._tasks.values())
+    def list_tasks(self, done: bool | None = None) -> list[Task]:
+        tasks = list(self._tasks.values())
+        if done is not None:
+            tasks = [task for task in tasks if task.done == done]
+        return tasks
 
     def get_task(self, task_id: int) -> Task | None:
         return self._tasks.get(task_id)
