@@ -1,9 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
+from app.api.routes.tasks import router as tasks_router
 from utils import calculate, calculate_bmi, format_name, is_palindrome, validate_email
 
-app = FastAPI()
+app = FastAPI(title="C216 API")
+app.include_router(tasks_router)
 
 
 @app.get("/health")
