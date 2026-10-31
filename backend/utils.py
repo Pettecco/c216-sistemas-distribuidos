@@ -15,9 +15,7 @@ def validate_email(email: str) -> bool:
     """Validate email format."""
     if not isinstance(email, str):
         raise TypeError("Email deve ser uma string")
-    if "@" not in email or "." not in email.split("@")[-1]:
-        return False
-    return True
+    return "@" in email and "." in email.split("@")[-1]
 
 
 def format_name(first: str, last: str) -> str:

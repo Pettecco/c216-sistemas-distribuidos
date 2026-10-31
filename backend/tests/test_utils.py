@@ -2,7 +2,6 @@ import pytest
 
 from utils import calculate, calculate_bmi, format_name, is_palindrome, validate_email
 
-
 # ── Testes para calculate ─────────────────────────────────────────────────────
 
 

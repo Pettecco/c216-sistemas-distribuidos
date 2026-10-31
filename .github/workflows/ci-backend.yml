@@ -2,15 +2,15 @@ name: CI Backend
 
 on:
   push:
-    branches: [main, aulas, "pratica-*"]
+    branches: [main, aulas, 'pratica-*']
     paths:
-      - "backend/**"
-      - ".github/workflows/ci-backend.yml"
+      - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
   pull_request:
     branches: [main, aulas]
     paths:
-      - "backend/**"
-      - ".github/workflows/ci-backend.yml"
+      - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
 
 jobs:
   test:
@@ -21,6 +21,24 @@ jobs:
       run:
         working-directory: backend
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: appdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d appdb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/appdb
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -28,7 +46,7 @@ jobs:
       - name: Configurar Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: '3.14'
 
       - name: Instalar Poetry
         run: |
@@ -37,6 +55,9 @@ jobs:
 
       - name: Instalar dependências
         run: poetry install
+
+      - name: Aplicar migrations
+        run: poetry run alembic upgrade head
 
       - name: Executar testes com Pytest
         run: poetry run pytest -v --tb=short
