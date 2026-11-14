@@ -1,13 +1,14 @@
 /**
- * Estado local das tarefas. Todas as funções são puras: recebem a lista
- * atual e devolvem uma nova lista, sem alterar a original.
+ * Regras puras de domínio das tarefas: validação dos campos do formulário,
+ * filtragem e contagem. O estado da lista agora vem da API, então as funções
+ * de criação, alternância e remoção locais foram substituídas pelo serviço em
+ * `src/services/tasks.js`.
  *
  * @typedef {Object} Task
- * @property {string} id
+ * @property {number} id
  * @property {string} name
- * @property {string} description
+ * @property {string | null} description
  * @property {boolean} done
- * @property {number} createdAt
  */
 
 export const NAME_MAX_LENGTH = 120;
@@ -51,49 +52,6 @@ export function validateTask({ name, description } = {}) {
     errors,
     values,
   };
-}
-
-/**
- * Cria uma tarefa e a coloca no início da lista.
- *
- * @param {Task[]} tasks
- * @param {{ name?: string, description?: string }} fields
- * @returns {Task[]}
- */
-export function addTask(tasks, fields) {
-  const result = validateTask(fields);
-
-  if (!result.valid) {
-    throw new Error("Não é possível adicionar uma tarefa inválida");
-  }
-
-  const task = {
-    id: crypto.randomUUID(),
-    name: result.values.name,
-    description: result.values.description,
-    done: false,
-    createdAt: Date.now(),
-  };
-
-  return [task, ...tasks];
-}
-
-/**
- * @param {Task[]} tasks
- * @param {string} id
- * @returns {Task[]}
- */
-export function toggleTask(tasks, id) {
-  return tasks.map((task) => (task.id === id ? { ...task, done: !task.done } : task));
-}
-
-/**
- * @param {Task[]} tasks
- * @param {string} id
- * @returns {Task[]}
- */
-export function removeTask(tasks, id) {
-  return tasks.filter((task) => task.id !== id);
 }
 
 /**

@@ -47,6 +47,25 @@ jobs:
       run:
         working-directory: frontend
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: appdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d appdb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/appdb
+      CORS_ORIGINS: http://127.0.0.1:4173,http://localhost:4173
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -58,7 +77,25 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Instalar dependências
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Instalar Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Instalar dependências do backend
+        working-directory: backend
+        run: poetry install
+
+      - name: Aplicar migrations
+        working-directory: backend
+        run: poetry run alembic upgrade head
+
+      - name: Instalar dependências do frontend
         run: npm ci
 
       - name: Instalar navegador Chromium
@@ -67,7 +104,7 @@ jobs:
       - name: Executar testes unitários
         run: npm run test
 
-      - name: Executar testes end-to-end
+      - name: Executar testes end-to-end com backend real
         run: npm run test:e2e
 
       - name: Publicar relatório do Playwright

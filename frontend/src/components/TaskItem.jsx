@@ -1,37 +1,19 @@
-const timeFormatter = new Intl.DateTimeFormat("pt-BR", {
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-const shortDateFormatter = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
-  month: "short",
-});
-
-function formatCreatedAt(timestamp) {
-  const date = new Date(timestamp);
-  const today = new Date();
-  const time = timeFormatter.format(date);
-
-  if (date.toDateString() === today.toDateString()) {
-    return `Hoje, ${time}`;
-  }
-
-  return `${shortDateFormatter.format(date).replace(/\.$/, "")}, ${time}`;
-}
-
-export function TaskItem({ task, onToggle, onRemove }) {
-  const { id, name, description, done, createdAt } = task;
+export function TaskItem({ task, busy = false, onToggle, onRemove }) {
+  const { name, description, done } = task;
 
   return (
-    <li className="group flex items-start gap-3 px-4 py-4 transition-colors hover:bg-white/60 sm:gap-4 sm:px-5">
+    <li
+      aria-busy={busy || undefined}
+      className="group flex items-start gap-3 px-4 py-4 transition-colors hover:bg-white/60 sm:gap-4 sm:px-5"
+    >
       <label className="relative mt-0.5 flex size-5 shrink-0 cursor-pointer items-center justify-center">
         <input
           type="checkbox"
           checked={done}
-          onChange={() => onToggle(id)}
+          onChange={() => onToggle(task)}
+          disabled={busy}
           aria-label={`Marcar ${name} como concluída`}
-          className="peer absolute inset-0 size-full cursor-pointer opacity-0"
+          className="peer absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-wait"
         />
         <span
           aria-hidden="true"
@@ -87,30 +69,15 @@ export function TaskItem({ task, onToggle, onRemove }) {
             {description}
           </p>
         ) : null}
-
-        <p className="mt-2 flex items-center gap-1 text-[11px] font-medium tracking-wide text-slate-500">
-          <svg
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            aria-hidden="true"
-            className="size-3"
-          >
-            <circle cx="10" cy="10" r="7.25" />
-            <path d="M10 6v4.2l2.8 1.8" />
-          </svg>
-          <time dateTime={new Date(createdAt).toISOString()}>{formatCreatedAt(createdAt)}</time>
-        </p>
       </div>
 
       <button
         type="button"
-        onClick={() => onRemove(id)}
+        onClick={() => onRemove(task)}
+        disabled={busy}
         aria-label={`Excluir ${name}`}
         title="Excluir tarefa"
-        className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-wait disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-500"
       >
         <svg
           viewBox="0 0 24 24"

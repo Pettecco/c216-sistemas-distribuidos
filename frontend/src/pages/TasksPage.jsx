@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { EmptyState } from "../components/EmptyState.jsx";
+import { LoadErrorState } from "../components/LoadErrorState.jsx";
+import { Notice } from "../components/Notice.jsx";
 import { StatsBar } from "../components/StatsBar.jsx";
 import { TaskFilters } from "../components/TaskFilters.jsx";
 import { TaskForm } from "../components/TaskForm.jsx";
 import { TaskList } from "../components/TaskList.jsx";
-import { addTask, countTasks, filterTasks, removeTask, toggleTask } from "../state/tasks.js";
+import { TasksSkeleton } from "../components/TasksSkeleton.jsx";
+import { createTask, deleteTask, listTasks, replaceTask } from "../services/tasks.js";
+import { countTasks, filterTasks } from "../state/tasks.js";
 
 const todayFormatter = new Intl.DateTimeFormat("pt-BR", {
   weekday: "long",
@@ -16,21 +20,89 @@ const todayFormatter = new Intl.DateTimeFormat("pt-BR", {
 export function TasksPage() {
   const [tasks, setTasks] = useState([]);
   const [filter, setFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [actionError, setActionError] = useState(null);
+  const [pendingIds, setPendingIds] = useState(() => new Set());
+
+  const loadTasks = useCallback(async (signal) => {
+    setLoading(true);
+    setLoadError(null);
+
+    try {
+      const data = await listTasks({ signal });
+
+      if (!signal?.aborted) {
+        // Mantém a tarefa mais recente no topo, como no cadastro.
+        setTasks([...data].sort((a, b) => b.id - a.id));
+      }
+    } catch (error) {
+      if (signal?.aborted || error?.name === "AbortError") {
+        return;
+      }
+
+      setTasks([]);
+      setLoadError(error?.message ?? "Não foi possível carregar as tarefas.");
+    } finally {
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadTasks(controller.signal);
+
+    return () => controller.abort();
+  }, [loadTasks]);
 
   const counts = countTasks(tasks);
   const visibleTasks = filterTasks(tasks, filter);
   const today = todayFormatter.format(new Date());
 
-  function handleAdd(fields) {
-    setTasks((current) => addTask(current, fields));
+  async function handleAdd(fields) {
+    setActionError(null);
+
+    const created = await createTask(fields);
+    setTasks((current) => [created, ...current]);
   }
 
-  function handleToggle(id) {
-    setTasks((current) => toggleTask(current, id));
+  async function handleToggle(task) {
+    setActionError(null);
+    setPendingIds((current) => new Set(current).add(task.id));
+
+    try {
+      const updated = await replaceTask(task.id, { ...task, done: !task.done });
+
+      setTasks((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (error) {
+      setActionError(error?.message ?? "Não foi possível atualizar a tarefa.");
+    } finally {
+      setPendingIds((current) => {
+        const next = new Set(current);
+        next.delete(task.id);
+        return next;
+      });
+    }
   }
 
-  function handleRemove(id) {
-    setTasks((current) => removeTask(current, id));
+  async function handleRemove(task) {
+    setActionError(null);
+    setPendingIds((current) => new Set(current).add(task.id));
+
+    try {
+      await deleteTask(task.id);
+      setTasks((current) => current.filter((item) => item.id !== task.id));
+    } catch (error) {
+      setActionError(error?.message ?? "Não foi possível excluir a tarefa.");
+    } finally {
+      setPendingIds((current) => {
+        const next = new Set(current);
+        next.delete(task.id);
+        return next;
+      });
+    }
   }
 
   return (
@@ -72,7 +144,7 @@ export function TasksPage() {
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-800/60 motion-reduce:animate-none" />
                 <span className="relative inline-flex size-1.5 rounded-full bg-emerald-800" />
               </span>
-              Somente nesta sessão
+              Salvo no banco de dados
             </span>
           </div>
 
@@ -85,7 +157,7 @@ export function TasksPage() {
                 Minhas <span className="italic text-emerald-800">tarefas</span>
               </h1>
               <p className="mt-3 max-w-md text-[15px] leading-relaxed text-slate-600">
-                Organize o dia. Tudo fica apenas nesta sessão.
+                Organize o dia. Suas tarefas ficam salvas e voltam ao recarregar.
               </p>
             </div>
 
@@ -96,13 +168,13 @@ export function TasksPage() {
               <p className="mt-1 font-display text-lg leading-snug text-slate-900 first-letter:uppercase">
                 {today}
               </p>
-              <p className="mt-1 text-xs text-slate-500">Dados no navegador</p>
+              <p className="mt-1 text-xs text-slate-500">Dados no PostgreSQL</p>
             </div>
           </div>
         </header>
 
         <div className="mt-8">
-          <StatsBar counts={counts} />
+          <StatsBar counts={counts} loading={loading || Boolean(loadError)} />
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start lg:gap-6">
@@ -114,6 +186,7 @@ export function TasksPage() {
 
           <section
             aria-labelledby="tasks-heading"
+            aria-busy={loading}
             className="panel rise-in"
             style={{ animationDelay: "200ms" }}
           >
@@ -129,7 +202,7 @@ export function TasksPage() {
                   >
                     Lista de tarefas
                   </h2>
-                  {counts.total > 0 ? (
+                  {!loading && counts.total > 0 ? (
                     <span className="text-xs font-medium tabular-nums text-slate-500">
                       {visibleTasks.length} de {counts.total}
                     </span>
@@ -140,35 +213,28 @@ export function TasksPage() {
               <TaskFilters filter={filter} onChange={setFilter} />
             </div>
 
-            {visibleTasks.length > 0 ? (
-              <TaskList tasks={visibleTasks} onToggle={handleToggle} onRemove={handleRemove} />
+            {actionError ? (
+              <div className="px-4 pt-4 sm:px-5">
+                <Notice onDismiss={() => setActionError(null)}>{actionError}</Notice>
+              </div>
+            ) : null}
+
+            {loading ? (
+              <TasksSkeleton />
+            ) : loadError ? (
+              <LoadErrorState message={loadError} onRetry={() => loadTasks()} />
+            ) : visibleTasks.length > 0 ? (
+              <TaskList
+                tasks={visibleTasks}
+                pendingIds={pendingIds}
+                onToggle={handleToggle}
+                onRemove={handleRemove}
+              />
             ) : (
               <EmptyState filter={filter} hasTasks={counts.total > 0} />
             )}
           </section>
         </div>
-
-        <footer className="mt-8 flex flex-col gap-2 border-t border-slate-900/10 pt-5 text-[11px] text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p className="flex items-center gap-1.5">
-            <svg
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-              className="size-3"
-            >
-              <rect x="4.5" y="8.5" width="11" height="7.5" rx="1.5" />
-              <path d="M7 8.5V6.8a3 3 0 0 1 6 0v1.7" />
-            </svg>
-            Nada é enviado a servidores. Ao recarregar, a lista começa vazia.
-          </p>
-          <p className="font-semibold uppercase tracking-[0.14em] text-slate-500">
-            Prática 6 · Estado local
-          </p>
-        </footer>
       </div>
     </main>
   );

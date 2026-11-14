@@ -41,6 +41,8 @@ export function TaskForm({ onAdd }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   const nameRef = useRef(null);
 
   function handleNameChange(event) {
@@ -59,8 +61,12 @@ export function TaskForm({ onAdd }) {
     }
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
+
+    if (submitting) {
+      return;
+    }
 
     const result = validateTask({ name, description });
 
@@ -69,11 +75,20 @@ export function TaskForm({ onAdd }) {
       return;
     }
 
-    onAdd(result.values);
     setErrors({});
-    setName("");
-    setDescription("");
-    nameRef.current?.focus();
+    setSubmitError(null);
+    setSubmitting(true);
+
+    try {
+      await onAdd(result.values);
+      setName("");
+      setDescription("");
+      nameRef.current?.focus();
+    } catch (error) {
+      setSubmitError(error?.message ?? "Não foi possível salvar a tarefa.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -129,9 +144,10 @@ export function TaskForm({ onAdd }) {
             placeholder="Ex.: Revisar o relatório do projeto"
             value={name}
             onChange={handleNameChange}
+            disabled={submitting}
             aria-invalid={errors.name ? "true" : undefined}
             aria-describedby={errors.name ? "name-error" : undefined}
-            className={`mt-2 ${fieldClasses(Boolean(errors.name))}`}
+            className={`mt-2 ${fieldClasses(Boolean(errors.name))} disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500`}
           />
           {errors.name ? <FieldError id="name-error" message={errors.name} /> : null}
         </div>
@@ -156,9 +172,10 @@ export function TaskForm({ onAdd }) {
             placeholder="Contexto, detalhes ou o que precisa ser feito."
             value={description}
             onChange={handleDescriptionChange}
+            disabled={submitting}
             aria-invalid={errors.description ? "true" : undefined}
             aria-describedby={errors.description ? "description-error" : undefined}
-            className={`mt-2 resize-y ${fieldClasses(Boolean(errors.description))}`}
+            className={`mt-2 resize-y ${fieldClasses(Boolean(errors.description))} disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500`}
           />
           {errors.description ? (
             <FieldError id="description-error" message={errors.description} />
@@ -166,11 +183,33 @@ export function TaskForm({ onAdd }) {
         </div>
       </div>
 
+      {submitError ? (
+        <p
+          role="alert"
+          className="mt-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-[13px] font-medium leading-5 text-red-800"
+        >
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0"
+          >
+            <circle cx="10" cy="10" r="7.5" />
+            <path d="M10 6.3v4.9" strokeLinecap="round" />
+            <path d="M10 13.8h.01" strokeLinecap="round" />
+          </svg>
+          <span>{submitError}</span>
+        </p>
+      ) : null}
+
       <button
         type="submit"
-        className="group mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-semibold text-white shadow-[0_16px_28px_-18px_rgba(20,32,43,0.9)] transition-colors hover:bg-[#21303d] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        disabled={submitting}
+        className="group mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-semibold text-white shadow-[0_16px_28px_-18px_rgba(20,32,43,0.9)] transition-colors hover:bg-[#21303d] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none disabled:active:translate-y-0"
       >
-        Adicionar tarefa
+        {submitting ? "Salvando…" : "Adicionar tarefa"}
         <svg
           viewBox="0 0 20 20"
           fill="none"
@@ -196,10 +235,11 @@ export function TaskForm({ onAdd }) {
           aria-hidden="true"
           className="size-3"
         >
-          <rect x="4.5" y="8.5" width="11" height="7.5" rx="1.5" />
-          <path d="M7 8.5V6.8a3 3 0 0 1 6 0v1.7" />
+          <ellipse cx="10" cy="5.5" rx="6" ry="2.5" />
+          <path d="M4 5.5v9c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-9" />
+          <path d="M4 10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5" />
         </svg>
-        Esta tarefa fica apenas nesta sessão.
+        A tarefa é salva no banco de dados.
       </p>
     </form>
   );
