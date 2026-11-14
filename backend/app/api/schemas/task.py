@@ -1,9 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TaskCreate(BaseModel):
-    name: str
-    description: str | None = None
+    name: str = Field(max_length=120)
+    description: str | None = Field(None, max_length=500)
     done: bool = False
 
 

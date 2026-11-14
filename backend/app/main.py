@@ -1,10 +1,21 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.routes.tasks import router as tasks_router
+from app.config import CORS_ORIGINS
 from utils import calculate, calculate_bmi, format_name, is_palindrome, validate_email
 
 app = FastAPI(title="C216 API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Accept", "Content-Type"],
+)
+
 app.include_router(tasks_router)
 
 
